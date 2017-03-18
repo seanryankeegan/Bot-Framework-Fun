@@ -3,20 +3,31 @@ var builder = require('botbuilder');
 var connector = new builder.ConsoleConnector().listen();
 var bot = new builder.UniversalBot(connector);
 
-bot.dialog('/', [
-    function(session){
-        builder.Prompts.text(session, "Hello, what's your name?");
+var salesData = {
+    "west": {
+        units: 200,
+        total: "$6,000"
     },
-    function(session, results) {
-        session.userData.name = results.response;
-        builder.Prompts.number(session, "How many years have you been coding?");
+    "central": {
+        units: 1,
+        total: "$3,000"
     },
-    function(session, results){
-        session.userData.number = results.response;
-        builder.Prompts.choice(session, "What language for node?",["JavaScript", "CoffeeScript", "TypeScript"]);
-    },
-    function(session, results){
-        session.userData.language = results.response.entity;
-        session.send("Got it, your name is " + session.userData.name + " and you've been coding for " + session.userData.number + " years and you write code in " + session.userData.language);
+    "east": {
+        units: 300,
+        total: "$9,000"
     }
-])
+};
+
+bot.dialog('/', [
+    function (session) {
+        builder.Prompts.choice(session, "Which region would you like sales for?", salesData); 
+    },
+    function (session, results) {
+        if (results.response) {
+            var region = salesData[results.response.entity];
+            session.send("We sold %(units)d unit for a total of %(total)s.", region); 
+        } else {
+            session.send("ok");
+        }
+    }
+]);
