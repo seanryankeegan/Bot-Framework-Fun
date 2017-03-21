@@ -1,5 +1,6 @@
 var builder = require('botbuilder');
 var restify = require('restify');
+var config = require('./config')
 
 
 var server = restify.createServer();
@@ -8,12 +9,16 @@ server.listen(process.env.port || process.env.PORT || 3978, function() {
 });
 
 var connector = new builder.ChatConnector({
-    appId: process.env.MICROSOFT_APP_ID,
-    appPassword: process.env.MICROSOFT_APP_PASSWORD
+    appId: config.ID,
+    appPassword: config.PASSWORD
 });
 
 var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
+server.get('/', restify.serveStatic({
+    directory: __dirname,
+    default: '/index.html'
+}));
 
 // Create LUIS recognizer that points at our model and add it as the root '/' dialog for our Cortana Bot.
 var model = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/c413b2ef-382c-45bd-8ff0-f76d60e2a821?subscription-key=01c9059724484d4a9be9f7d00748c9e4&q=';
