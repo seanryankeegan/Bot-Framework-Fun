@@ -1,18 +1,16 @@
 var builder = require('botbuilder');
 
+// Create bot and bind to console
 var connector = new builder.ConsoleConnector().listen();
 var bot = new builder.UniversalBot(connector);
 
-// var recognizer = new builder.LuisRecognizer(model);
+// Create LUIS recognizer that points at our model and add it as the root '/' dialog for our Cortana Bot.
+var model = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/c413b2ef-382c-45bd-8ff0-f76d60e2a821?subscription-key=01c9059724484d4a9be9f7d00748c9e4&q=';
+var recognizer = new builder.LuisRecognizer(model);
 var dialog = new builder.IntentDialog({ recognizers: [recognizer] });
 bot.dialog('/', dialog);
 
-// dialog.matches('builtin.intent.alarm.set_alarm',
-// builder.DialogAction.send('Creating Alarm'));
-// dialog.matches('builtin.intent.alarm.delete_alarm',
-// builder.DialogAction.send('Deleting Alarm'));
-// dialog.onDefault(builder.DialogAction.send("Sorry, I only know how to create and delete alarms!"));
-
+// Add intent handlers
 dialog.matches('builtin.intent.alarm.set_alarm', [
     function (session, args, next) {
         // Resolve and store any entities passed from LUIS.
@@ -67,3 +65,49 @@ dialog.matches('builtin.intent.alarm.set_alarm', [
             session.send('Ok... no problem.');
         }
     }]);
+
+    dialog.matches('builtin.intent.alarm.delete_alarm', [
+    function (session, args, next) {
+        // Resolve entities passed from LUIS.
+        var title;
+        var entity = builder.EntityRecognizer.findEntity(args.entities, 'builtin.alarm.title');
+        if (entity) {
+            // Verify its in our set of alarms.
+            title = builder.EntityRecognizer.findBestMatch(alarms, entity.entity);
+        }
+        
+        // Prompt for alarm name
+        if (!title) {
+            builder.Prompts.choice(session, 'Which alarm would you like to delete?', alarms);
+        } else {
+            next({ response: title });
+        }
+    },
+    function (session, results) {
+        // If response is null the user canceled the task
+        if (results.response) {
+            delete alarms[results.response.entity];
+            session.send("Deleted the '%s' alarm.", results.response.entity);
+        } else {
+            session.send('Ok... no problem.');
+        }
+    }
+]);
+
+dialog.onDefault(builder.DialogAction.send("I'm sorry I didn't understand. I can only create & delete alarms."));
+
+// Very simple alarm scheduler
+var alarms = {};
+setInterval(function () {
+    var now = new Date().getTime();
+    for (var key in alarms) {
+        var alarm = alarms[key];
+        if (now >= alarm.timestamp) {
+            var msg = new builder.Message()
+                .address(alarm.address)
+                .text("Here's your '%s' alarm.", alarm.title);
+            bot.send(msg);
+            delete alarms[key];
+        }
+    }
+}, 15000);
